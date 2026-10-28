@@ -421,6 +421,20 @@ footer p{max-width:560px}
 .ct-links a{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink);text-decoration:none;font-weight:500}
 .ct-links a:hover{border-color:var(--teal);color:var(--teal)}
 #ctWa{border-color:rgba(37,211,102,.5)}
+.af{padding:14px;border-radius:14px;border:1px solid rgba(62,240,200,.4);background:linear-gradient(140deg,rgba(62,240,200,.12),rgba(16,14,52,.6));margin-bottom:14px}
+.af-h{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.af-h b{font-size:15px}.af-h span{font-family:var(--mono);font-size:12px;color:var(--mute)}.af-h i{font-style:normal;color:var(--teal);font-weight:600}
+.af details{margin-top:8px}.af summary{cursor:pointer;font-size:13px;color:var(--teal)}
+.af-l{list-style:none;display:grid;gap:8px;margin-top:8px;max-height:300px;overflow:auto}
+.af-l li{font-size:12.5px;padding:8px 10px;border-radius:10px;background:rgba(5,4,22,.55);border:1px solid var(--line)}
+.af-l em{display:block;font-style:normal;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.af-l s{display:block;color:#ff8ea3;opacity:.85}.af-l span{display:block;color:var(--ink)}
+.af-b{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.af-go{display:block;width:100%;text-align:left;margin-bottom:14px;padding:14px;border-radius:14px;border:1px solid var(--teal);background:linear-gradient(120deg,rgba(62,240,200,.18),rgba(98,214,255,.08));color:var(--ink);cursor:pointer;font:inherit}
+.af-go b{display:block;font-size:16px;color:var(--teal)}.af-go span{display:block;font-size:13px;color:var(--mute);margin-top:2px}
+.nx{padding:10px 12px;border-radius:12px;background:rgba(5,4,22,.55);border:1px solid var(--line);margin-bottom:8px}
+.nx p{font-size:13px;margin:0 0 8px}.nx p b{display:block}.nx p span{display:block;color:var(--mute);margin-top:2px}
+.nx-r{display:flex;gap:6px}.nx-r input{flex:1;min-width:0;padding:8px 10px;border-radius:10px;font-size:13.5px}
 .redeem{margin-top:26px;text-align:center;color:var(--mute);font-size:15px}
 .redeem button,.linkbtn{background:none;border:0;color:var(--teal);font:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:0}
 .codeTierRow{margin-bottom:14px}
@@ -2196,27 +2210,157 @@ function lintBullet(b){
   if ([...CLICHE, ...LLMW].some(p => new RegExp('\\b' + p + '\\b', 'i').test(b))) f.push('AI-style word');
   return f;
 }
+/* ---------- automatic fixes ----------
+   Everything that can be corrected without knowing new facts is fixed automatically:
+   wording, duty phrasing, tense of past roles, dates, role order, headline, summary,
+   contact formats, skills and languages. What only the candidate knows (real numbers,
+   visa status, missing details) is asked for in short inline prompts instead. */
+const GER_PAST = {running:'ran', leading:'led', building:'built', writing:'wrote', selling:'sold', teaching:'taught', making:'made', growing:'grew', driving:'drove', overseeing:'oversaw', setting:'set', cutting:'cut', getting:'got', meeting:'met', sending:'sent', spending:'spent', taking:'took', bringing:'brought', holding:'held', keeping:'kept', winning:'won', beginning:'began', doing:'did', giving:'gave', finding:'found', speaking:'spoke', paying:'paid', buying:'bought', thinking:'thought', dealing:'dealt'};
+const IRR_PAST = {build:'built', lead:'led', run:'ran', write:'wrote', sell:'sold', teach:'taught', make:'made', grow:'grew', drive:'drove', win:'won', set:'set', cut:'cut', oversee:'oversaw', begin:'began', bring:'brought', hold:'held', keep:'kept', meet:'met', send:'sent', spend:'spent', take:'took', speak:'spoke', find:'found', give:'gave', get:'got', put:'put', understand:'understood', undertake:'undertook', choose:'chose', deal:'dealt', pay:'paid', buy:'bought', think:'thought'};
+const capF = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+function gerundToPast(g){ const l = g.toLowerCase(); if (GER_PAST[l]) return GER_PAST[l]; const st = l.replace(/ing$/, ''); return /[^aeiou]y$/.test(st) ? st.slice(0, -1) + 'ied' : st + 'ed'; }
+// present-tense opener ("Manage", "Leads", "Build") -> past tense, only for verbs we recognise
+function toPast(w){
+  const l = w.toLowerCase();
+  if (/ed$/.test(l) || Object.values(IRR_PAST).includes(l)) return null;
+  for (const c of [l, l.replace(/es$/, ''), l.replace(/s$/, '')]){
+    if (IRR_PAST[c]) return IRR_PAST[c];
+    const p = /e$/.test(c) ? c + 'd' : /[^aeiou]y$/.test(c) ? c.slice(0, -1) + 'ied' : c + 'ed';
+    if (VERBS.has(p)) return p;
+  }
+  return null;
+}
+function fixBullet(b, past){
+  let s = b.trim().replace(/\s+/g, ' ').replace(/[.;,\s]+$/, ''), m;
+  s = s.replace(/^(I|We)\s+/, '').replace(/^(successfully|effectively|efficiently|actively|proactively)\s+/i, '');
+  if ((m = s.match(/^(?:was\s+)?(?:responsible|in charge)\s+(?:for|of)\s+(\w+ing)\b\s*(.*)$/i))) s = capF(gerundToPast(m[1])) + ' ' + m[2];
+  else if ((m = s.match(/^(?:was\s+)?(?:responsible|in charge)\s+(?:for|of)\s+(.*)$/i))) s = (/(team|staff|department|budget|accounts?|clients?|operations|branch|unit|portfolio|people)/i.test(m[1]) ? 'Managed ' : 'Handled ') + m[1];
+  else if ((m = s.match(/^(?:my\s+)?(?:main\s+)?(?:duties|tasks|responsibilities)\s+(?:included|include|were|was)\s*:?\s*(.*)$/i))) s = 'Handled ' + m[1];
+  else if ((m = s.match(/^worked\s+on\s+(\w+ing)\b\s*(.*)$/i))) s = capF(gerundToPast(m[1])) + ' ' + m[2];
+  else if ((m = s.match(/^worked\s+on\s+(.*)$/i))) s = 'Delivered ' + m[1];
+  else if ((m = s.match(/^(?:helped|assisted)\s+(?:with|in|to)\s+(.*)$/i))) s = 'Supported ' + m[1];
+  s = swapText(s);
+  if (past){ const w = (s.match(/^[A-Za-z]+/) || [''])[0], p = w && toPast(w); if (p) s = capF(p) + s.slice(w.length); }
+  return capF(s.trim().replace(/\s+/g, ' '));
+}
+const CCODE = [[/\b(lebanon|beirut|tripoli|saida|sidon|jounieh|byblos|jbeil|zahle|tyre|metn|baabda|batroun)\b/i, '961'], [/\b(uae|dubai|abu dhabi|sharjah|ajman)\b/i, '971'], [/\b(saudi|ksa|riyadh|jeddah|dammam|khobar)\b/i, '966'], [/\b(qatar|doha)\b/i, '974'], [/\b(kuwait)\b/i, '965'], [/\b(bahrain|manama)\b/i, '973'], [/\b(oman|muscat)\b/i, '968']];
+function fixPhone(p, loc, market){
+  const raw = (p || '').trim(); if (!raw || /^(\+|00)/.test(raw)) return raw;
+  let d = raw.replace(/\D/g, ''); if (d.length < 7) return raw;
+  const cc = (CCODE.find(([re]) => re.test(loc || '')) || [])[1] || (market === 'lb' ? '961' : null);
+  if (!cc) return raw;
+  d = d.replace(/^0/, '');
+  const g = cc === '961' ? (d.length === 7 ? `${d[0]} ${d.slice(1, 4)} ${d.slice(4)}` : `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5)}`) : `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5)}`;
+  return `+${cc} ${g}`.trim();
+}
+const sharesTitle = (a, b) => { if (!a || !b) return false; const A = titleTokens(a), B = new Set(titleTokens(b)); const hit = A.filter(t => B.has(t)).length; return hit >= 1 && hit / A.length >= .5; };
+const SOFT_RE = /^(communication( skills)?|teamwork|team player|leadership|time management|problem[- ]solving|adaptability|critical thinking|collaboration|hard[- ]?working|detail[- ]oriented|organi[sz]ational skills|interpersonal skills|flexibility|creativity|motivated|self[- ]motivated)$/i;
+const scoreNow = () => analyze({text: cvText(cvModel(D)), kind:'text', images:0}, D.target.ad, D.target.market, 'CV.pdf', D.target.title);
+
+function autoFix(){
+  const ch = [], push = (area, before, after) => { if ((before || '') !== (after || '')) ch.push({area, before: before || '—', after: after || '—'}); };
+  const c = D.contact;
+  // contact formats
+  let v = c.email.trim().toLowerCase(); push('Email', c.email, v); c.email = v;
+  v = c.linkedin.trim().replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, ''); push('LinkedIn', c.linkedin, v); c.linkedin = v;
+  v = fixPhone(c.phone, c.location, D.target.market); push('Phone', c.phone, v); c.phone = v;
+  // dates, current role, order of roles
+  D.exp.forEach((e, i) => {
+    const before = [e.start, e.current ? 'Present' : e.end].filter(Boolean).join(' – ');
+    if (/present|current|now/i.test(e.end || '')) e.current = true;
+    e.start = normDate(e.start); e.end = e.current ? '' : normDate(e.end);
+    push('Dates · ' + (e.title || 'Role ' + (i + 1)), before, [e.start, e.current ? 'Present' : e.end].filter(Boolean).join(' – '));
+  });
+  const startOf = e => { const r = ranges(dateRange(e)); return r.length ? r[0].a.v : -1; };
+  const sorted = [...D.exp].sort((a, b) => (b.current - a.current) || startOf(b) - startOf(a));
+  if (sorted.some((e, i) => e !== D.exp[i])){ push('Order of roles', D.exp.map(e => e.title).join(' · '), sorted.map(e => e.title).join(' · ')); D.exp = sorted; }
+  // headline: the ad's exact title when it describes the same job, else the latest title
+  const recent = D.exp.find(e => e.title) || {};
+  let hl = c.headline.trim();
+  if (!hl) hl = sharesTitle(D.target.title, recent.title) ? D.target.title : (recent.title || '');
+  else if (D.target.title && hl.toLowerCase() !== D.target.title.toLowerCase() && sharesTitle(D.target.title, hl)) hl = D.target.title;
+  push('Headline', c.headline, hl); c.headline = hl;
+  // bullets: duty phrasing, pronouns, AI words, past tense for past roles, split run-ons
+  D.exp.forEach((e, i) => {
+    const out = bulletsOf(e.bullets).flatMap(b => b.length > 230 && b.includes('; ') ? b.split(/;\s+/) : [b]).map(b => {
+      const f = fixBullet(b, !e.current); push('Bullet · ' + (e.title || 'Role ' + (i + 1)), b, f); return f;
+    });
+    e.bullets = out.join('\n');
+  });
+  // skills: drop generic soft skills, de-duplicate, add ad terms the CV already shows, ad terms first
+  const r0 = scoreNow(), sk0 = D.skills;
+  let sk = D.skills.split(/\s*[,;\n•|]\s*/).map(s => s.trim()).filter(Boolean).filter(s => !SOFT_RE.test(s));
+  const seen = new Set(); sk = sk.filter(s => { const k = s.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+  const body = (D.summary + '\n' + D.exp.map(e => e.bullets).join('\n')).toLowerCase();
+  (r0.kw || []).filter(k => k.found && !seen.has(k.term.toLowerCase()) && body.includes(k.term.toLowerCase()) && k.term.split(' ').length <= 3 && (/[A-Z]{2,}|[a-z][A-Z]/.test(k.term) || (k.term.includes(' ') && /[A-Z]/.test(k.term)))).forEach(k => { sk.push(k.term); seen.add(k.term.toLowerCase()); });
+  const adTerms = new Set((r0.kw || []).map(k => k.term.toLowerCase()));
+  sk.sort((a, b) => adTerms.has(b.toLowerCase()) - adTerms.has(a.toLowerCase()));
+  D.skills = sk.join(', '); push('Skills', sk0, D.skills);
+  // languages
+  const l0 = D.langs.map(l => l.name).join(', ');
+  D.langs = D.langs.filter(l => l.name && !/^(references?|salary|available|hobbies|interests|driving)$/i.test(l.name.trim()));
+  push('Languages', l0, D.langs.map(l => l.name).join(', '));
+  D.langs.forEach(l => { const b = `${l.name} – ${l.level}`; l.name = capF((l.name || '').trim().toLowerCase()); l.level = /mother tongue|native/i.test(l.level || '') ? 'Native' : capF((l.level || '').trim()); push('Languages', b, `${l.name} – ${l.level}`); });
+  // additional information: drop lines recruiters read as filler
+  const x0 = D.extras; D.extras = bulletsOf(D.extras).filter(l => !/references (are )?available|salary/i.test(l)).map(l => swapText(l)).join('\n'); push('Additional information', x0, D.extras);
+  // summary: rewrite when missing, an objective, adjective-led, AI-styled or without years
+  const s0 = D.summary, st = s0.trim();
+  const weak = !st || /\b(seeking|looking for|to obtain|challenging (role|position)|career objective)\b/i.test(st)
+    || /^(dynamic|passionate|motivated|highly|hardworking|hard-working|results[- ]driven|dedicated|enthusiastic|ambitious|driven|detail[- ]oriented|creative)\b/i.test(st)
+    || !/\b\d+\+?\s*(years|yrs)\b/i.test(st) || CLICHE.some(p => new RegExp('\\b' + p + '\\b', 'i').test(st));
+  if (weak && D.exp.some(e => e.title)) draftSummary(); else D.summary = swapText(D.summary);
+  push('Summary', s0, D.summary);
+  // tailor: the summary mentions up to two ad terms the CV already proves
+  if (r0.kw && D.target.ad){
+    const inSum = D.summary.toLowerCase(), add = (r0.kw || []).filter(k => k.found && !inSum.includes(k.term.toLowerCase()) && sk.some(s => s.toLowerCase() === k.term.toLowerCase())).slice(0, 2).map(k => k.term);
+    if (add.length && !/specialising in/i.test(D.summary)){ const s1 = D.summary; D.summary = D.summary.replace(/\.\s*$/, '') + `. Strong in ${listJoin(add)}.`; push('Summary · tailored to the ad', s1, D.summary); }
+  }
+  return ch;
+}
+function runAutoFix(){
+  const snap = JSON.stringify(D), before = scoreNow().score;
+  const changes = autoFix(), after = scoreNow().score;
+  ST.fix = {snap, before, after, changes};
+  renderForm(); update();
+}
+
+/* what only the candidate can supply, asked for inline */
+function needsInput(){
+  const items = [], c = D.contact, mk = D.target.market;
+  const field = (path, label, ph) => items.push({kind:'set', path, label, ph});
+  D.exp.forEach((e, i) => bulletsOf(e.bullets).forEach((b, j) => { if (!/\d|%|\$|€|£/.test(b)) items.push({kind:'num', i, j, label: `${e.title || 'Role ' + (i + 1)}: add a measurable result`, quote: b, ph: 'e.g. saving 7 hours a week, for 40 clients, cutting costs 12%'}); }));
+  if (!/\d/.test(D.summary.replace(/\b\d+\+?\s*(years|yrs)\b/gi, ''))) items.push({kind:'sum', label: 'Summary: add one result with a number', ph: 'e.g. Grew online sales 38% in two years'});
+  if (!c.location) field('contact.location', 'Your city and country', 'Beirut, Lebanon');
+  if (!c.phone) field('contact.phone', 'Phone with country code', '+961 3 123 456');
+  if (!c.linkedin) field('contact.linkedin', 'LinkedIn profile', 'linkedin.com/in/yourname');
+  if (mk === 'gulf'){ if (!c.nationality) field('contact.nationality', 'Nationality (Gulf recruiters expect it)', 'Lebanese'); if (!c.visa) field('contact.visa', 'Visa status', 'Residence visa (transferable)'); if (!c.notice) field('contact.notice', 'Notice period', '30 days'); }
+  D.langs.forEach((l, i) => { if (l.name && !l.level) field(`langs.${i}.level`, `${l.name}: your level`, 'Native, Fluent, C1, B2…'); });
+  D.edu.forEach((e, i) => { if ((e.degree || e.school) && !e.year) field(`edu.${i}.year`, `${e.degree || e.school}: graduation year`, '2020'); });
+  return items;
+}
+
 function update(){
-  const M = cvModel(D), text = cvText(M), T = TPL[D.tpl];
+  const M = cvModel(D), text = cvText(M);
   $('#stPaper').innerHTML = cvHTML(M, D.tpl);
   const base = slug(D.contact.name || 'Your-Name') + '-CV' + (D.target.title ? '-' + slug(D.target.title) : '');
   const r = analyze({text, kind:'text', images:0}, D.target.ad, D.target.market, base + '.pdf', D.target.title);
   LAST = r;
   const sc = $('#stScore'); sc.textContent = r.score; sc.className = r.score >= 80 ? 'pass' : r.score >= 55 ? 'fix' : 'fail';
   const subs = [['ATS', r.sub.ats], ['Impact', r.sub.impact], ['Job fit', r.sub.fit], ['Market', r.sub.market]];
-  let h = `<div class="lv-subs">${subs.map(([n, v]) => { const c = v === null ? 'na' : v >= 80 ? 'pass' : v >= 55 ? 'fix' : 'fail'; return `<div><span>${n}</span><b class="${c}">${v ?? '—'}</b><i class="${c}" style="--w:${v ?? 0}%"></i></div>`; }).join('')}</div>`;
-  const quick = [];
-  if (r.fit && r.fit.title && r.fit.title.s < 1 && D.target.title) quick.push(`<button type="button" class="qk" data-act="usetitle">Use “${esc(D.target.title)}” as your headline</button>`);
-  const buzz = (text.match(SWAP_RE) || []).length; if (buzz) quick.push(`<button type="button" class="qk" data-act="autofix">Replace ${buzz} AI-style word${buzz > 1 ? 's' : ''}</button>`);
-  if (!D.summary.trim()) quick.push(`<button type="button" class="qk" data-act="draft-summary">Draft a summary</button>`);
-  if (quick.length) h += `<div class="lv-sec"><h5>One-click fixes</h5>${quick.join('')}</div>`;
+  let h = '';
+  if (ST.fix){
+    const f = ST.fix;
+    h += `<div class="af"><div class="af-h"><b>${f.changes.length ? `${f.changes.length} automatic fix${f.changes.length > 1 ? 'es' : ''} applied` : 'Auto-fix found nothing to change'}</b><span>score ${f.before} → <i>${f.after}</i></span></div>
+      ${f.changes.length ? `<details><summary>See every change</summary><ul class="af-l">${f.changes.slice(0, 60).map(x => `<li><em>${esc(x.area)}</em><s>${esc(x.before.length > 140 ? x.before.slice(0, 138) + '…' : x.before)}</s><span>${esc(x.after.length > 140 ? x.after.slice(0, 138) + '…' : x.after)}</span></li>`).join('')}</ul></details>` : ''}
+      <div class="af-b"><button type="button" class="btn btn-ghost mini" data-act="undo-fix">Undo auto-fix</button><button type="button" class="btn btn-ghost mini" data-act="run-fix">Run again</button></div></div>`;
+  } else h += `<button type="button" class="af-go" data-act="run-fix"><b>Auto-fix my CV</b><span>Rewrites wording, dates, headline, summary and skills in one click. You can undo it.</span></button>`;
+  h += `<div class="lv-subs">${subs.map(([n, v]) => { const c = v === null ? 'na' : v >= 80 ? 'pass' : v >= 55 ? 'fix' : 'fail'; return `<div><span>${n}</span><b class="${c}">${v ?? '—'}</b><i class="${c}" style="--w:${v ?? 0}%"></i></div>`; }).join('')}</div>`;
+  const need = needsInput();
+  if (need.length) h += `<div class="lv-sec"><h5>Needs your input (${need.length})</h5><p class="hint">Only you know these. Type the real detail and tap Add; it goes straight into your CV.</p>${need.slice(0, 14).map((n, k) => `<div class="nx"><p><b>${esc(n.label)}</b>${n.quote ? `<span>${esc(n.quote.length > 110 ? n.quote.slice(0, 108) + '…' : n.quote)}</span>` : ''}</p><div class="nx-r"><input type="text" id="nx${k}" placeholder="${esc(n.ph)}" autocomplete="off"><button type="button" class="btn btn-primary mini" data-act="nx" data-kind="${n.kind}" data-src="nx${k}" data-path="${n.path || ''}" data-i="${n.i ?? ''}" data-j="${n.j ?? ''}">Add</button></div></div>`).join('')}</div>`;
   const miss = (r.kw || []).filter(k => !k.found);
   if (miss.length) h += `<div class="lv-sec"><h5>Missing from the ad</h5><p class="hint">Add only what is true for you. Tap to add to Skills, then show it in a bullet.</p><div class="kws">${miss.map(k => `<button type="button" data-act="kw" data-term="${esc(k.term)}">+ ${esc(k.term)}</button>`).join('')}</div></div>`;
-  const lint = [];
-  D.exp.forEach((e, i) => bulletsOf(e.bullets).forEach((b, j) => { const f = lintBullet(b); if (f.length) lint.push(`<li><b>${esc(e.title || 'Role ' + (i + 1))} · ${j + 1}</b> <em>${f.join(' · ')}</em><span>${esc(b.length > 90 ? b.slice(0, 88) + '…' : b)}</span></li>`); }));
-  if (lint.length) h += `<div class="lv-sec"><h5>Bullets to strengthen (${lint.length})</h5><ul class="lint">${lint.slice(0, 12).join('')}</ul></div>`;
-  const iss = r.issues.filter(f => f.g !== 'A').slice(0, 6);
-  if (iss.length) h += `<div class="lv-sec"><h5>Top issues right now</h5><ul class="lint">${iss.map(f => `<li><b class="${f.level}">${esc(f.title)}</b>${f.fix ? `<span>${esc(f.fix)}</span>` : ''}</li>`).join('')}</ul></div>`;
+  const iss = r.issues.filter(f => f.g !== 'A').slice(0, 5);
+  if (iss.length) h += `<div class="lv-sec"><h5>Other issues</h5><ul class="lint">${iss.map(f => `<li><b class="${f.level}">${esc(f.title)}</b>${f.fix ? `<span>${esc(f.fix)}</span>` : ''}</li>`).join('')}</ul></div>`;
   $('#stLive').innerHTML = h;
   store.set('opus-studio-' + ST.id, D);
 }
@@ -2273,13 +2417,14 @@ function openStudio(tier, id){
     D = blankD();
     D.target.title = $('#jobTitle').value || orderInfo.role || ''; D.target.ad = $('#jobAd').value || '';
     if (orderInfo.name) D.contact.name = orderInfo.name; if (orderInfo.email) D.contact.email = orderInfo.email;
-    if (REPORT && REPORT.text) importInto(D, REPORT.text);
+    if (REPORT && REPORT.text){ importInto(D, REPORT.text); ST.pendingFix = true; }
   }
   D.cl = D.cl || {company:'', manager:'', text:''};
   if (tier !== 'rebuild') D.tpl = 'classic';
   $('#stMode').textContent = tier === 'rebuild' ? 'Rebuild studio' : 'Repair studio';
   $('#stModeSub').textContent = `Order ${id}`;
   renderForm(); renderTpl(); update();
+  if (ST.pendingFix){ ST.pendingFix = false; runAutoFix(); }
   $('#studio').classList.add('on'); $('#studio').setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden';
 }
 function closeStudio(){ $('#studio').classList.remove('on'); $('#studio').setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
@@ -2292,7 +2437,7 @@ $('#studio').addEventListener('change', async e => {
     const src = n.endsWith('.pdf') ? await extractPDF(f) : n.endsWith('.docx') ? await extractDOCX(f) : n.endsWith('.txt') ? {text: await f.text()} : null;
     if (!src) throw new Error('Please use a PDF, DOCX or TXT file.');
     if (src.text.replace(/\s/g, '').length < 100) throw new Error('No readable text found. This looks like a scanned image; export a text-based PDF or a DOCX instead.');
-    const keep = {target: D.target, tpl: D.tpl, cl: D.cl}; D = blankD(); Object.assign(D, keep); importInto(D, src.text); renderForm(); update();
+    const keep = {target: D.target, tpl: D.tpl, cl: D.cl}; D = blankD(); Object.assign(D, keep); importInto(D, src.text); runAutoFix();
   } catch(err){ const m = $('#stUpMsg'); if (m) m.textContent = err.message || 'The file could not be read.'; }
 });
 $('#studio').addEventListener('input', e => {
@@ -2314,11 +2459,24 @@ $('#studio').addEventListener('click', async e => {
   else if (a === 'add-lang'){ D.langs.push({name:'', level:''}); re(); }
   else if (a === 'del-lang'){ D.langs.splice(i, 1); re(); }
   else if (a === 'draft-summary'){ draftSummary(); re(); }
-  else if (a === 'autofix'){ D.summary = swapText(D.summary); D.exp.forEach(x => x.bullets = swapText(x.bullets)); D.extras = swapText(D.extras); re(); }
+  else if (a === 'autofix' || a === 'run-fix') runAutoFix();
+  else if (a === 'undo-fix' && ST.fix){ D = JSON.parse(ST.fix.snap); ST.fix = null; re(); }
+  else if (a === 'nx'){
+    const val = ($('#' + b.dataset.src).value || '').trim(); if (!val) return;
+    const kind = b.dataset.kind;
+    if (kind === 'set') sv(b.dataset.path, val);
+    else if (kind === 'num'){
+      const e = D.exp[+b.dataset.i], bl = bulletsOf(e.bullets), j = +b.dataset.j, v2 = val.replace(/^,\s*/, '').replace(/\.$/, '');
+      bl[j] = bl[j].replace(/[.\s]+$/, '') + (/^(by|to|for|from|in|across|with|at|within|over)\b/i.test(v2) ? ' ' : ', ') + v2;
+      e.bullets = bl.join('\n');
+    }
+    else if (kind === 'sum') D.summary = D.summary.trim().replace(/\.?$/, '. ').trimStart() + capF(val.replace(/\.$/, '')) + '.';
+    re();
+  }
   else if (a === 'usetitle'){ D.contact.headline = D.target.title; re(); }
   else if (a === 'kw'){ const t = b.dataset.term; D.skills = D.skills.trim() ? D.skills.replace(/[,\s]+$/, '') + ', ' + t : t; re(); }
-  else if (a === 'import-scan' && REPORT){ const keep = {target: D.target, tpl: D.tpl, cl: D.cl}; D = blankD(); Object.assign(D, keep); importInto(D, REPORT.text); re(); }
-  else if (a === 'import-paste'){ const t = $('#stPaste').value; if (t.trim().length < 40) return; const keep = {target: D.target, tpl: D.tpl, cl: D.cl}; D = blankD(); Object.assign(D, keep); importInto(D, t); re(); }
+  else if (a === 'import-scan' && REPORT){ const keep = {target: D.target, tpl: D.tpl, cl: D.cl}; D = blankD(); Object.assign(D, keep); importInto(D, REPORT.text); runAutoFix(); }
+  else if (a === 'import-paste'){ const t = $('#stPaste').value; if (t.trim().length < 40) return; const keep = {target: D.target, tpl: D.tpl, cl: D.cl}; D = blankD(); Object.assign(D, keep); importInto(D, t); runAutoFix(); }
   else if (a === 'tpl'){ if (ST.tier !== 'rebuild' && b.dataset.t !== 'classic'){ closeStudio(); openOrder('rebuild'); return; } D.tpl = b.dataset.t; renderTpl(); update(); }
   else if (a === 'bb-add'){
     const v = $('#bbVerb').value.trim(), w = $('#bbWhat').value.trim(), r = $('#bbRes').value.trim(); if (!v || !w) return;
