@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Opus CV admin</title>
+<link rel="icon" href="assets/star.png">
+<style>
+:root{--bg:#06051a;--panel:#0e0c2e;--ink:#eaf0ff;--mute:#9aa3d6;--dim:#5f6699;--teal:#3ef0c8;--cyan:#62d6ff;--fail:#ff5d7a;--line:rgba(130,150,255,.2)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,"Segoe UI",sans-serif;min-height:100vh;padding:24px 16px 60px;overflow-x:hidden}
+.wrap{max-width:720px;margin:0 auto}
+header{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+header img{height:34px}
+header h1{font-size:18px;letter-spacing:.06em}
+header span{margin-left:auto;font:11px ui-monospace,monospace;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;white-space:nowrap}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:16px}
+.card h2{font-size:17px;margin-bottom:6px}
+.card p{color:var(--mute);font-size:14px}
+.lbl{display:block;font:11px ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:16px 0 6px}
+input,select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#05041a;color:var(--ink);font:16px system-ui,sans-serif}
+input:focus,select:focus{outline:none;border-color:var(--teal)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.row{grid-template-columns:1fr}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;padding:0 20px;border-radius:999px;border:0;cursor:pointer;font:600 15px system-ui,sans-serif;text-decoration:none}
+.btn.p{background:linear-gradient(100deg,var(--teal),var(--cyan));color:#05041a}
+.btn.g{background:rgba(255,255,255,.05);color:var(--ink);border:1px solid var(--line)}
+.btn.wa{background:#25d366;color:#05210f}
+.btn:disabled{opacity:.5;cursor:wait}
+.btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.check{list-style:none;display:grid;gap:10px;margin-top:12px}
+.check label{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;cursor:pointer}
+.check input{width:20px;height:20px;margin-top:2px;flex:none}
+.out{margin-top:18px;padding:16px;border-radius:14px;border:1px dashed rgba(62,240,200,.5);background:rgba(62,240,200,.05)}
+.out b{display:block;font-size:13px;color:var(--teal);margin-bottom:6px;font-weight:600}
+.out code{display:block;word-break:break-all;font:13px ui-monospace,monospace}
+.ok{color:var(--teal)}.bad{color:var(--fail)}
+.status{font-size:14px;margin-top:10px}
+.tbl{overflow-x:auto;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:480px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line)}
+th{font:11px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:400}
+td button{background:none;border:0;color:var(--teal);cursor:pointer;font:inherit;text-decoration:underline}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><img src="assets/logo.png" alt=""><h1>OPUS CV · ADMIN</h1><span id="state" class="bad">locked</span></header>
+
+  <form class="card" id="loginCard" autocomplete="off">
+    <h2>Admin sign-in</h2>
+    <p>Enter the admin password to create unlock links.</p>
+    <label class="lbl" for="pw">Password</label>
+    <input type="password" id="pw" autocomplete="current-password" required>
+    <div class="btns"><button class="btn p" id="loginGo" type="submit">Unlock admin</button></div>
+    <div class="status" id="loginMsg"></div>
+  </form>
+
+  <div class="card hidden" id="genCard">
+    <h2>Create an unlock</h2>
+    <p>Only after the payment has arrived. Check your Whish account first.</p>
+    <div class="check">
+      <label><input type="checkbox" class="ck"> The payment shows as received in Whish</label>
+      <label><input type="checkbox" class="ck"> The amount matches the service: $2 report, $5 Repair or $15 Rebuild</label>
+      <label><input type="checkbox" class="ck"> The customer sent the Scan or Order ID on WhatsApp, and the name matches the payer</label>
+    </div>
+    <div class="row">
+      <div><label class="lbl" for="tier">Service paid for</label>
+        <select id="tier"><option value="scan">$2 · full scan report</option><option value="repair">$5 · Repair studio (includes a free report)</option><option value="rebuild">$15 · Rebuild studio (includes a free report)</option></select></div>
+      <div><label class="lbl" for="cid">Scan or Order ID</label><input id="cid" placeholder="OP-XXXXXX" autocomplete="off" spellcheck="false"></div>
+    </div>
+    <div class="row">
+      <div><label class="lbl" for="cname">Customer name (for your records)</label><input id="cname" autocomplete="off"></div>
+      <div><label class="lbl" for="cphone">Customer WhatsApp (optional)</label><input id="cphone" placeholder="03 123 456" inputmode="tel" autocomplete="off"></div>
+    </div>
+    <div class="btns"><button class="btn p" id="gen" type="button">Create unlock</button></div>
+    <div class="status" id="genMsg"></div>
+    <div class="out hidden" id="out">
+      <b>Unlock link (send this to the customer)</b><code id="outLink"></code>
+      <div class="btns">
+        <a class="btn wa" id="sendWa" target="_blank" rel="noopener">Send on WhatsApp</a>
+        <button class="btn g" id="copyLink" type="button">Copy link</button>
+        <button class="btn g" id="copyCode" type="button">Copy code only</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card hidden" id="logCard">
+    <h2>Unlocks created on this device</h2>
+    <div class="tbl"><table><thead><tr><th>Date</th><th>Service</th><th>ID</th><th>Customer</th><th></th></tr></thead><tbody id="log"></tbody></table></div>
+    <div class="btns"><button class="btn g" id="lock" type="button">Lock admin</button></div>
+  </div>
+</div>
+<script>
+// The signing key is stored here only in encrypted form (AES-GCM, key derived from the admin password
+// with PBKDF2-SHA256). The site itself holds only the public half, which can check codes but not make them.
+const PUB = {"kty":"EC","x":"A6itbVEFIr6vn8t1Yah5mcvkwdFCX6a1_UPiVSphvD8","y":"hJTbOvNpO0etZfW8L0TDRK8NfCLC04UqOlQ1lvsN7g8","crv":"P-256"};
+const VAULT = {"iter":600000,"salt":"qI7APYZm+13mpOyxDR+myg==","iv":"49cmHlDB2JBDH2x/","ct":"YHp4YB1Qblrw8MB6FVRYv5Dk6h01Ldd/GqzYK6lIZ8OjssIaC+GA7RdOJr4sZ1h55x8tudc5733n0k8KRitvFTNni2y76WVOJXrls7XptXNpcEI4vLNs3VU+7HX+W86tAtFlu38AFqbdEmua0XbHrnz4SGI0+AESc3jJiwtY4qupN3UTddIRC7vJzzrom2ZdVLISlD2YUe4b3a9USj2VbGISdcdZ+EJu0B5Lb/5SkRAJUPeZfY0zcnMAz6Du4HW0"};
+const SITE = 'https://opuscv.store/';
+const TL = {scan:'S', repair:'R', rebuild:'B'}, NAMES = {scan:'$2 report', repair:'$5 Repair studio', rebuild:'$15 Rebuild studio'};
+const $ = s => document.querySelector(s);
+const ls = { get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } }, set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} } };
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+let KEY = null;
+
+async function openVault(password){
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+  const aes = await crypto.subtle.deriveKey({name:'PBKDF2', hash:'SHA-256', salt: unb64(VAULT.salt), iterations: VAULT.iter}, base, {name:'AES-GCM', length:256}, false, ['decrypt']);
+  const jwk = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM', iv: unb64(VAULT.iv)}, aes, unb64(VAULT.ct))));
+  const priv = await crypto.subtle.importKey('jwk', jwk, {name:'ECDSA', namedCurve:'P-256'}, false, ['sign']);
+  const pub = await crypto.subtle.importKey('jwk', PUB, {name:'ECDSA', namedCurve:'P-256'}, false, ['verify']);
+  const probe = new TextEncoder().encode('probe'), sig = await crypto.subtle.sign({name:'ECDSA', hash:'SHA-256'}, priv, probe);
+  if (!await crypto.subtle.verify({name:'ECDSA', hash:'SHA-256'}, pub, sig, probe)) throw new Error('mismatch');
+  return priv;
+}
+function show(){
+  $('#state').textContent = KEY ? 'unlocked' : 'locked'; $('#state').className = KEY ? 'ok' : 'bad';
+  $('#loginCard').classList.toggle('hidden', !!KEY);
+  $('#genCard').classList.toggle('hidden', !KEY);
+  $('#logCard').classList.toggle('hidden', !KEY);
+  if (KEY) renderLog();
+}
+function renderLog(){
+  const rows = ls.get('opus-admin-log', []);
+  $('#log').innerHTML = rows.slice().reverse().map((r, i) => `<tr><td>${new Date(r.at).toLocaleString('en-GB', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}</td><td>${NAMES[r.tier]}</td><td>${r.id}</td><td>${(r.name || '').replace(/[<>&"]/g, '')}</td><td><button type="button" data-i="${rows.length - 1 - i}">copy link</button></td></tr>`).join('') || '<tr><td colspan="5" style="color:var(--dim)">None yet.</td></tr>';
+}
+$('#log').addEventListener('click', async e => { const i = e.target.dataset.i; if (i == null) return; const r = ls.get('opus-admin-log', [])[+i]; await navigator.clipboard.writeText(r.link); e.target.textContent = 'copied'; });
+
+let fails = 0;
+$('#loginCard').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('#loginGo'); btn.disabled = true; btn.textContent = 'Checking…'; $('#loginMsg').textContent = '';
+  try { KEY = await openVault($('#pw').value); fails = 0; }
+  catch(err){ KEY = null; fails++; $('#loginMsg').innerHTML = '<span class="bad">Wrong password.</span>'; await new Promise(r => setTimeout(r, Math.min(8000, 600 * fails))); }
+  $('#pw').value = ''; btn.disabled = false; btn.textContent = 'Unlock admin'; show();
+});
+$('#lock').addEventListener('click', () => { KEY = null; show(); });
+
+function normPhone(p){ let d = (p || '').replace(/[^\d+]/g, ''); if (!d) return ''; if (d.startsWith('+')) return d.slice(1); if (d.startsWith('00')) return d.slice(2); if (d.startsWith('0')) return '961' + d.slice(1); if (d.length <= 8) return '961' + d; return d; }
+$('#gen').addEventListener('click', async () => {
+  const msg = $('#genMsg'); msg.textContent = ''; $('#out').classList.add('hidden');
+  if ([...document.querySelectorAll('.ck')].some(c => !c.checked)) return msg.innerHTML = '<span class="bad">Tick all three checks first: only create an unlock once the payment is confirmed.</span>';
+  const raw = $('#cid').value.trim().toUpperCase().replace(/^OP-?/, '');
+  if (!/^[A-Z0-9]{6}$/.test(raw)) return msg.innerHTML = '<span class="bad">The ID should look like OP-ABC234.</span>';
+  const tier = $('#tier').value, id = 'OP-' + raw, t = TL[tier];
+  const sig = await crypto.subtle.sign({name:'ECDSA', hash:'SHA-256'}, KEY, new TextEncoder().encode(t + '|' + id));
+  const code = `${t}.${raw}.${b64u(sig)}`, link = SITE + '#u=' + code;
+  $('#outLink').textContent = link; $('#out').classList.remove('hidden');
+  const text = tier === 'scan'
+    ? `Thank you for your payment. Your full Opus CV report is ready. Tap to unlock it (open it on the same phone or computer you scanned on): ${link}`
+    : `Thank you for your payment. Your Opus CV ${tier === 'repair' ? 'Repair' : 'Rebuild'} studio is ready, and it includes a free full scan report. Tap to open it: ${link}`;
+  $('#sendWa').href = 'https://wa.me/' + normPhone($('#cphone').value) + '?text=' + encodeURIComponent(text);
+  $('#copyLink').textContent = 'Copy link'; $('#copyCode').textContent = 'Copy code only';
+  $('#copyLink').onclick = async () => { await navigator.clipboard.writeText(link); $('#copyLink').textContent = 'Copied'; };
+  $('#copyCode').onclick = async () => { await navigator.clipboard.writeText(code); $('#copyCode').textContent = 'Copied'; };
+  const log = ls.get('opus-admin-log', []); log.push({at: Date.now(), tier, id, name: $('#cname').value.trim(), link}); ls.set('opus-admin-log', log.slice(-300)); renderLog();
+  document.querySelectorAll('.ck').forEach(c => c.checked = false);
+});
+try { localStorage.removeItem('opus-admin-key'); } catch(e){}
+show();
+</script>
+</body>
+</html>
