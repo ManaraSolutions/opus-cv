@@ -2024,11 +2024,11 @@ async function cvDOCX(M, t, letter, title){
 }
 
 /* PDF export: real, selectable text (what an ATS needs), laid out per template */
-async function cvPDF(M, t, letter, title){
+async function cvPDF(M, t, letter, title, compact = 0){
   const jsPDF = await ensurePDF(), T = TPL[t], k = tplColors(t);
   const doc = new jsPDF({unit:'pt', format: letter ? 'letter' : 'a4'});
-  const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), MG = 52, W = PW - 2 * MG;
-  const bs = T.pdf.b === 'times' ? 10.8 : 10, lh = bs * 1.4;
+  const PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), MG = 52 - 6 * compact, W = PW - 2 * MG;
+  const bs = (T.pdf.b === 'times' ? 10.8 : 10) - .35 * compact, lh = bs * (1.4 - .05 * compact);
   const set = (fam, s, sz, col) => { doc.setFont(fam, s); doc.setFontSize(sz); doc.setTextColor(...rgb(col)); };
   const ax = T.align === 'center' ? PW / 2 : MG, al = T.align === 'center' ? 'center' : 'left';
   let y = MG;
@@ -2039,7 +2039,7 @@ async function cvPDF(M, t, letter, title){
     else if (b.t === 'headline'){ set(T.pdf.b, 'normal', 12, k.hl); doc.text(s, ax, y + 11, {align: al}); y += 18; }
     else if (b.t === 'contact'){ set(T.pdf.b, 'normal', 9, '444444'); doc.splitTextToSize(s, W).forEach(l => { doc.text(l, ax, y + 9, {align: al}); y += 12.5; }); y += 2; }
     else if (b.t === 'h'){
-      y += 12; room(48); set(T.pdf.h, T.hs === 'caps' ? 'normal' : 'bold', 10.5, T.hs === 'caps' ? T.acc : k.head);
+      y += 12 - 3 * compact; room(48); set(T.pdf.h, T.hs === 'caps' ? 'normal' : 'bold', 10.5, T.hs === 'caps' ? T.acc : k.head);
       doc.text(s.toUpperCase(), MG, y + 10, {charSpace: T.hs === 'caps' ? 1.8 : .5}); y += 15;
       if (T.hs !== 'caps'){ doc.setDrawColor(...rgb(k.rule)); doc.setLineWidth(T.hs === 'accent' ? 1.4 : .6); doc.line(MG, y, MG + W, y); }
       y += 8;
@@ -2056,6 +2056,8 @@ async function cvPDF(M, t, letter, title){
     else if (b.t === 'gap') y += 9;
     else if (b.t === 'bullet'){ set(T.pdf.b, 'normal', bs, '222222'); doc.splitTextToSize(s, W - 14).forEach((l, n) => { room(lh); if (n === 0) doc.text('•', MG + 3, y + bs); doc.text(l, MG + 14, y + bs); y += lh; }); y += 1.5; }
   }
+  // a few lines spilling onto page two reads as a page and a half: tighten slightly to fit one full page
+  if (doc.getNumberOfPages() === 2 && y < PH * .3 && compact < 2) return cvPDF(M, t, letter, title, compact + 1);
   const n = doc.getNumberOfPages();
   for (let p = 2; p <= n; p++){ doc.setPage(p); set(T.pdf.b, 'normal', 8.5, '777777'); doc.text(`${san(M[0].text)}  ·  Page ${p} of ${n}`, MG + W, PH - 26, {align:'right'}); }
   doc.setProperties({title, author: M[0].text});
