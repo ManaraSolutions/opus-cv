@@ -1592,12 +1592,13 @@ addEventListener('keydown', e => { if (e.key === 'Escape') $$('.modal.on').forEa
 
 const waLink = text => CONFIG.whatsapp ? `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(text)}` : `mailto:${CONFIG.email}?body=${encodeURIComponent(text)}`;
 const LOCK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 018 0v3" stroke="currentColor" stroke-width="2"/></svg>';
-function payStepHTML(tier, amount, msg){
-  const link = CONFIG.checkout[tier];
+// The customer's Scan or Order ID rides along as Stripe's client_reference_id, so it shows on the payment in the dashboard.
+function payStepHTML(tier, amount, msg, ref){
+  const base = CONFIG.checkout[tier], link = base && ref ? base + (base.includes('?') ? '&' : '?') + 'client_reference_id=' + encodeURIComponent(ref) : base;
   return link
     ? `<div class="pstep"><span class="pn">1</span><div>Pay <b>$${amount}</b> by card on our secure checkout. It opens in a new tab.
         <div class="pact"><a class="btn btn-primary mini" href="${link}" target="_blank" rel="noopener">${LOCK} Pay $${amount} securely</a></div>
-        <div class="cards">Visa · Mastercard · encrypted by our payment provider</div></div></div>`
+        <div class="cards">Visa · Mastercard · encrypted by Stripe · reference ${esc(ref || "")}</div></div></div>`
     : `<div class="pstep"><span class="pn">1</span><div>Request your secure card payment link for <b>$${amount}</b>. We send it to you on WhatsApp within minutes during working hours.
         <div class="pact"><a class="btn btn-primary mini" href="${waLink(msg)}" target="_blank" rel="noopener">${LOCK} Request payment link</a>
         <a class="btn btn-ghost mini" href="mailto:${CONFIG.email}?subject=${encodeURIComponent('Payment link request')}&body=${encodeURIComponent(msg)}">Or by email</a></div></div></div>`;
@@ -1611,7 +1612,7 @@ function openPay(){
     ? `Hi Opus CV, I've paid $1 for my CV scan.\nScan ID: ${REPORT.scanId}\nPayment email: `
     : `Hi Opus CV, I'd like to unlock my CV scan report ($1).\nScan ID: ${REPORT.scanId}`;
   $('#payBody').innerHTML = `<div class="paysteps">
-    ${payStepHTML('scan', 1, msg)}
+    ${payStepHTML('scan', 1, msg, REPORT.scanId)}
     <div class="pstep"><span class="pn">2</span><div>${CONFIG.checkout.scan ? 'Send us your Scan ID with your payment confirmation. We reply with your unlock code.' : 'Once you have paid, we send your unlock code to the same chat.'}
       ${CONFIG.checkout.scan ? `<div class="pact"><a class="btn btn-ghost mini" href="${waLink(msg)}" target="_blank" rel="noopener">Send on WhatsApp</a></div>` : ''}</div></div>
     <div class="pstep"><span class="pn">3</span><div>Enter your code. This tab keeps your results, so you can switch apps and come back.
@@ -1687,7 +1688,7 @@ function showOrderPay(tier){
   $('#payEyebrow').textContent = `Order ID ${id}`;
   $('#payTitle').textContent = `${nm} · ${price}`;
   $('#payBody').innerHTML = `<div class="paysteps">
-    ${payStepHTML(tier, amt, msg)}
+    ${payStepHTML(tier, amt, msg, id)}
     <div class="pstep"><span class="pn">2</span><div>${live ? 'Send us your Order ID with your payment confirmation. We reply with your access code.' : 'Once you have paid, we send your access code to the same chat.'}
       ${live ? `<div class="pact"><a class="btn btn-ghost mini" href="${waLink(msg)}" target="_blank" rel="noopener">Send on WhatsApp</a></div>` : ''}</div></div>
     <div class="pstep"><span class="pn">3</span><div>Enter your code to open the Opus Studio. Keep your Order ID: it reopens your studio later.
